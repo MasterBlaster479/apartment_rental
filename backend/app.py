@@ -6,7 +6,7 @@ from datetime import date
 import uvicorn
 import os
 import crud, db
-# mora se inicijalizirati OS.environ prije pozivanja jwt librarya
+# to initialize AuthJWT correctly, first must be set environment variable AUTHJWT_SECRET_KEY
 os.environ["AUTHJWT_SECRET_KEY"] = 'secret_key'
 from fastapi_jwt_auth import AuthJWT
 
