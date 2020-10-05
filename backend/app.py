@@ -10,6 +10,12 @@ import crud, db
 os.environ["AUTHJWT_SECRET_KEY"] = 'secret_key'
 from fastapi_jwt_auth import AuthJWT
 
+def get_authorization_user(auth_token: str = Header(alias='auth_token', default='')):
+    auth_jwt_token = AuthJWT('Bearer %s' %(auth_token))
+    auth_jwt_token.jwt_required()
+    jwt_ident = auth_jwt_token.get_jwt_identity()
+    return User(**crud.get_user_by_login(jwt_ident))
+
 app = FastAPI()
 
 
@@ -35,15 +41,15 @@ def register(user: User):
     return access_token
 
 @app.post('/import-calendar')
-def import_calendar(file: UploadFile = File(...), Authorize: AuthJWT = Depends()):
+def import_calendar(file: UploadFile = File(...), current_user: User = Depends(get_authorization_user)):
     crud.process_calendar_file_data([(file.filename, file.file.read())])
 
 @app.post('/import-calendars')
-def import_calendar(files: List[UploadFile] = File(...)):
+def import_calendar(files: List[UploadFile] = File(...), current_user: User = Depends(get_authorization_user)):
     crud.process_calendar_file_data([(file.filename, file.file.read()) for file in files])
 
 @app.get('/export-calendar{apartment_id}')
-def export_calendar(id: int, Authorization: AuthJWT = Depends()):
+def export_calendar(id: int, current_user: User = Depends(get_authorization_user)):
     file_name, data = crud.export_calendar_by_apartment_id(id)
     response = StreamingResponse(data, media_type='text-plain')
     setattr(response, 'filename', file_name)

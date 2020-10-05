@@ -14,6 +14,10 @@ def login(user):
     return models.User.get(login=user.login, password=user.password)
 
 @db_session
+def get_user_by_login(login):
+    return models.User.get(login=login).to_dict()
+
+@db_session
 def process_calendar_file_data(file_datas):
     for file_name, file_read in file_datas:
         file_apartment_name = file_name.replace('.ics', '')
