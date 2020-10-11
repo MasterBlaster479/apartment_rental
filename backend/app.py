@@ -1,23 +1,31 @@
-from fastapi import FastAPI, UploadFile, File, Form, Body, Header, Depends
+from fastapi import FastAPI, UploadFile, File, Form, Body, Header, Depends, APIRouter, __version__ as fapi_version
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, Response
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import date
 import uvicorn
+import logging
+import sys
 import os
 import crud, db
 # to initialize AuthJWT correctly, first must be set environment variable AUTHJWT_SECRET_KEY
 os.environ["AUTHJWT_SECRET_KEY"] = 'secret_key'
+os.environ["AUTHJWT_ACCESS_TOKEN_EXPIRES"] = '3600'
 from fastapi_jwt_auth import AuthJWT
 
-def get_authorization_user(auth_token: str = Header(alias='auth_token', default='')):
-    auth_jwt_token = AuthJWT('Bearer %s' %(auth_token))
+def get_authorization_user(Authorization: str = Header(default='')):
+    auth_jwt_token = AuthJWT(Authorization)
     auth_jwt_token.jwt_required()
     jwt_ident = auth_jwt_token.get_jwt_identity()
     return User(**crud.get_user_by_login(jwt_ident))
 
+handler = logging.StreamHandler(sys.stdout)
+logger = logging.getLogger('fastapi')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+logger.debug(f'FastAPI v{fapi_version}')
 app = FastAPI()
-
+app.debug = True
 
 class User(BaseModel):
     login: str
@@ -26,8 +34,12 @@ class User(BaseModel):
     last_name: str
     email: str
 
+class UserLogin(BaseModel):
+    login: str
+    password: str
+
 @app.post('/login')
-def login(user: User):
+def login(user: UserLogin):
     login = crud.login(user)
     if not login:
         return Response(content='Invalid login/password', status_code=404)
@@ -56,7 +68,8 @@ def export_calendar(id: int, current_user: User = Depends(get_authorization_user
     return response
 
 @app.get('/calendars')
-def get_calendar(date_from: Optional[date] = None, date_to: Optional[date] = None):
+def get_calendar(date_from: Optional[date] = None, date_to: Optional[date] = None,
+                 current_user: User = Depends(get_authorization_user)):
     return crud.get_calendar(date_from=date_from, date_to=date_to)
 
 if __name__ == '__main__':

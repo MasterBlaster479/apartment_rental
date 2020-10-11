@@ -64,9 +64,11 @@ def get_calendar(date_from=None, date_to=None):
         reservations = reservations.where(lambda r: r.date_start >= date_from)
     if date_to:
         reservations = reservations.where(lambda r: r.date_end <= date_to)
+    if not reservations:
+        return []
     reservation_date_start = min(r.date_start for r in reservations)
     reservation_date_stop = max(r.date_start for r in reservations)
-    reserved_apartments = select(r.apartment_id.name for r in reservations).distinct()
+    reserved_apartments = select(r.apartment_id.name for r in reservations).order_by(1).distinct()
     for reservation_date in pandas.date_range(reservation_date_start, reservation_date_stop):
         reservation_date = reservation_date.to_pydatetime().date()
         data[reservation_date] = {}
@@ -76,15 +78,24 @@ def get_calendar(date_from=None, date_to=None):
         apartments_start = select(e.apartment_id.name for e in starting_event).distinct()[:]
         apartments_end = select(e.apartment_id.name for e in ending_event).distinct()[:]
         apartments_ongoing = select(e.apartment_id.name for e in ongoing_event).distinct()[:]
-        # The lesser the better
-        data[reservation_date]['cleaning_index'] = len(apartments_ongoing) * 100 + len(apartments_end) * 10 + len(apartments_start) * 1
+        if apartments_ongoing:
+            data[reservation_date]['cleaning_index'] = -1
+        else:
+            # The lesser the better
+            data[reservation_date]['cleaning_index'] = len(apartments_end) * 10 + len(apartments_start) * 1
         line_repr = {}.fromkeys(reserved_apartments, '')
-        line_repr.update({a: 'Entering' for a in apartments_start})
         line_repr.update({a: 'Occupied' for a in apartments_ongoing})
         line_repr.update({a: 'Leaving' for a in apartments_end})
+        for a in apartments_start:
+            if line_repr.get(a):
+                line_repr[a] += '/Entering'
+            else:
+                line_repr[a] = 'Entering'
         data[reservation_date]['line_repr'] = line_repr
-    min_cleaning_index = min(map(lambda x: x['cleaning_index'], data.values()))
+    min_cleaning_index = min(map(lambda x: x['cleaning_index'],
+                                 filter(lambda x: x['cleaning_index'] != -1, data.values())))
     calendar = OrderedDict()
+    calendars = []
     for key in data:
         if data[key]['cleaning_index'] == min_cleaning_index:
             data[key]['cleaning_day'] = True
@@ -92,13 +103,21 @@ def get_calendar(date_from=None, date_to=None):
             for apartment_name in line_repr:
                 if line_repr[apartment_name] != 'Occupied':
                     if line_repr[apartment_name] == 'Entering':
-                        line_repr[apartment_name] = 'Cleaning/%s' %(line_repr[apartment_name],)
+                        line_repr[apartment_name] = 'Cleaning/Entering'
                     elif line_repr[apartment_name] == 'Leaving':
-                        line_repr[apartment_name] = '%s/Cleaning' % (line_repr[apartment_name],)
+                        line_repr[apartment_name] = 'Leaving/Cleaning'
+                    elif line_repr[apartment_name] == 'Leaving/Entering':
+                        line_repr[apartment_name] = 'Leaving/Cleaning/Entering'
                     else:
                         line_repr[apartment_name] = 'Cleaning'
             calendar[key] = line_repr
+            new_line_repr = dict(date=key)
+            new_line_repr.update(line_repr)
         else:
-            calendar[key] = data[key]['line_repr']
-    return calendar
+            line_repr = data[key]['line_repr']
+            new_line_repr = dict(date=key)
+            new_line_repr.update(line_repr)
+            calendar[key] = line_repr
+        calendars.append(new_line_repr)
+    return calendars
 
