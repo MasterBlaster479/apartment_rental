@@ -2,6 +2,7 @@ fastapi
 fastapi-jwt-auth
 uvicorn
 python-multipart
+postgres
 psycopg2
 pony
 icalendar
