@@ -28,7 +28,8 @@ server ce se dignuti i javiti u command promptu na kojoj adresi se aplikaciji mo
 ## Backend
 prije pokretanja je potrebno imati podignuti Postgres9.5 lokalno ili dockerizirano
 te rucno kreiranu bazu podataka _apartment_rental_
-samo konfiguriranje konekcije prema bazi se moze izvesti u datoteci **backend/db.py**.
+
+Samo konfiguriranje konekcije prema bazi se moze izvesti u datoteci **backend/db.py**.
 Takodjer je potrebno instalirati sve librarye koristeci pip install i _requirements.txt_ datoteku
 ```
 pip install -r requirements.txt
